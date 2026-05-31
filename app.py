@@ -119,6 +119,7 @@ if AUTH_ENABLED:
         "/api/auth/features",
         "/api/auth/settings",
         "/api/auth/integrations/presets",
+        "/api/mobile/pair/complete",
         "/api/health",
         "/api/version",
         "/login",
@@ -580,6 +581,10 @@ from routes.api_token_routes import setup_api_token_routes
 app.include_router(setup_api_token_routes())
 
 logger.info("Webhook & API token routes initialized")
+
+# Mobile pairing, devices, and private notification event APIs
+from routes.mobile_routes import setup_mobile_routes
+app.include_router(setup_mobile_routes())
 
 # Notes (Google Keep-style notes/todos)
 from routes.note_routes import setup_note_routes
