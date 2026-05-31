@@ -56,6 +56,6 @@ def event_detail(event: NotificationEvent) -> dict[str, Any]:
     detail = event_summary(event)
     try:
         detail["private_payload"] = json.loads(event.private_payload_json or "{}")
-    except Exception:
+    except json.JSONDecodeError:
         detail["private_payload"] = {}
     return detail

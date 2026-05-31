@@ -13,7 +13,12 @@ from services.mobile_devices import (
     hash_push_token,
     pairing_tokens,
 )
-from services.notification_events import event_detail, event_summary, opaque_push_payload
+from services.notification_events import (
+    create_notification_event,
+    event_detail,
+    event_summary,
+    opaque_push_payload,
+)
 from src.auth_helpers import require_user
 
 
@@ -51,7 +56,7 @@ def setup_mobile_routes() -> APIRouter:
         record = pairing_tokens.create(owner=owner, server_url=server_url)
         return {
             "pairing_token": record.token,
-            "expires_at": record.expires_at.isoformat() + "Z",
+            "expires_at": record.expires_at.isoformat(),
             "qr_payload": {
                 "type": "odysseus_mobile_pairing",
                 "server_url": server_url,
@@ -159,16 +164,14 @@ def setup_mobile_routes() -> APIRouter:
             device = None
             if token_id:
                 device = db.query(MobileDevice).filter(MobileDevice.api_token_id == token_id).first()
-            event = NotificationEvent(
-                id="evt_test_" + _now_utc().strftime("%Y%m%d%H%M%S%f"),
+            event = create_notification_event(
+                db,
                 owner=owner,
                 device_id=device.id if device else None,
                 event_type="push_test",
                 priority="normal",
-                private_payload_json='{"message":"Mobile push test"}',
-                delivery_status="created",
+                private_payload={"message": "Mobile push test"},
             )
-            db.add(event)
             db.flush()
             return {"status": "created", "event": event_summary(event), "push_payload": opaque_push_payload(event.id)}
 
