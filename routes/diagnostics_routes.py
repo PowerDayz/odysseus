@@ -95,12 +95,13 @@ def setup_diagnostics_routes(
             settings = load_settings()
             provider = (settings.get("search_provider") or "disabled").strip()
             label, needs_key, needs_url = PROVIDER_INFO.get(provider, (provider or "Unknown", False, False))
-            has_key = bool((settings.get({
+            key_field = {
                 "brave": "brave_api_key",
                 "google_pse": "google_pse_key",
                 "tavily": "tavily_api_key",
                 "serper": "serper_api_key",
-            }.get(provider, "")) or "").strip())
+            }.get(provider, "")
+            has_key = bool((settings.get(key_field, "") or "").strip())
             has_url = bool((settings.get("search_url") or "").strip())
             missing = (needs_key and not has_key) or (needs_url and not has_url and provider != "searxng")
             if provider == "disabled":
