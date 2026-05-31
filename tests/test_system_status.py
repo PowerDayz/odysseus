@@ -24,9 +24,9 @@ class _FakeDb:
         self.email_count = email_count
 
     def query(self, model):
-        if getattr(model, "__name__", "") == "ModelEndpoint":
+        if model is _ModelEndpoint:
             return _FakeQuery(self.endpoint_count)
-        if getattr(model, "__name__", "") == "EmailAccount":
+        if model is _EmailAccount:
             return _FakeQuery(self.email_count)
         return _FakeQuery(0)
 
@@ -43,10 +43,13 @@ class _EmailAccount:
 
 
 def _install_fake_database(monkeypatch, endpoint_count=0, email_count=0):
+    core_pkg = sys.modules.get("core") or types.ModuleType("core")
     mod = types.ModuleType("core.database")
     mod.ModelEndpoint = _ModelEndpoint
     mod.EmailAccount = _EmailAccount
     mod.SessionLocal = lambda: _FakeDb(endpoint_count=endpoint_count, email_count=email_count)
+    core_pkg.database = mod
+    monkeypatch.setitem(sys.modules, "core", core_pkg)
     monkeypatch.setitem(sys.modules, "core.database", mod)
 
 
