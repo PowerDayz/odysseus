@@ -12,6 +12,14 @@ class _FakeDb:
         self.added.append(obj)
 
 
+class _Record:
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
+
+    def __getattr__(self, _name):
+        return None
+
+
 def test_pairing_tokens_are_short_lived_and_single_use():
     store = PairingTokenStore(ttl_seconds=60)
     record = store.create(owner="alice", server_url="https://odysseus.example.com")
@@ -21,9 +29,14 @@ def test_pairing_tokens_are_short_lived_and_single_use():
     assert store.consume(record.token) is None
 
 
-def test_mobile_device_creation_uses_device_specific_scoped_token():
+def test_mobile_device_creation_uses_device_specific_scoped_token(monkeypatch):
+    import services.mobile_devices as mobile_devices
+
+    monkeypatch.setattr(mobile_devices, "ApiToken", _Record)
+    monkeypatch.setattr(mobile_devices, "MobileDevice", _Record)
+
     db = _FakeDb()
-    device, token = create_mobile_device(
+    device, token = mobile_devices.create_mobile_device(
         db,
         owner="alice",
         device_name="Alice iPhone",
@@ -37,7 +50,7 @@ def test_mobile_device_creation_uses_device_specific_scoped_token():
     assert device.platform == "ios"
     assert "agent:approve" in device.scopes
     assert device.push_token_hash
-    assert "sensitive-provider-token" not in repr(device_to_dict(device))
+    assert "sensitive-provider-token" not in repr(mobile_devices.device_to_dict(device))
     assert len(db.added) == 2
 
 
