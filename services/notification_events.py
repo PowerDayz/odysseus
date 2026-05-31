@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from core.database import NotificationEvent
@@ -32,7 +32,7 @@ def create_notification_event(
         device_id=device_id,
         event_type=(event_type or "generic")[:64],
         priority=(priority or "normal")[:32],
-        expires_at=datetime.utcnow() + timedelta(seconds=ttl_seconds),
+        expires_at=datetime.now(timezone.utc) + timedelta(seconds=ttl_seconds),
         private_payload_json=json.dumps(private_payload or {}, separators=(",", ":")),
         delivery_status="created",
     )

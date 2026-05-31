@@ -6,7 +6,7 @@ import hashlib
 import secrets
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import bcrypt
@@ -48,7 +48,7 @@ class PairingTokenStore:
             token=token,
             owner=owner,
             server_url=server_url,
-            expires_at=datetime.utcnow() + timedelta(seconds=self.ttl_seconds),
+            expires_at=datetime.now(timezone.utc) + timedelta(seconds=self.ttl_seconds),
         )
         self._tokens[token] = record
         return record
@@ -56,12 +56,12 @@ class PairingTokenStore:
     def consume(self, token: str) -> PairingToken | None:
         self.cleanup()
         record = self._tokens.pop(token, None)
-        if not record or record.expires_at <= datetime.utcnow():
+        if not record or record.expires_at <= datetime.now(timezone.utc):
             return None
         return record
 
     def cleanup(self) -> None:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         expired = [token for token, record in self._tokens.items() if record.expires_at <= now]
         for token in expired:
             self._tokens.pop(token, None)

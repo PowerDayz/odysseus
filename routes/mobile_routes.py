@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Request
 
@@ -15,6 +15,10 @@ from services.mobile_devices import (
 )
 from services.notification_events import event_detail, event_summary, opaque_push_payload
 from src.auth_helpers import require_user
+
+
+def _now_utc() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 def _invalidate_token_cache(request: Request) -> None:
@@ -96,7 +100,7 @@ def setup_mobile_routes() -> APIRouter:
                 ).first()
                 if not device or device.revoked_at is not None:
                     raise HTTPException(403, "Mobile device revoked")
-                device.last_seen_at = datetime.utcnow()
+                device.last_seen_at = _now_utc()
                 device_payload = device_to_dict(device)
         return {"status": "ok", "owner": owner, "device": device_payload}
 
@@ -117,7 +121,7 @@ def setup_mobile_routes() -> APIRouter:
             ).first()
             if not device:
                 raise HTTPException(404, "Device not found")
-            device.revoked_at = device.revoked_at or datetime.utcnow()
+            device.revoked_at = device.revoked_at or _now_utc()
             if device.api_token_id:
                 db.query(ApiToken).filter(ApiToken.id == device.api_token_id).update({"is_active": False})
         _invalidate_token_cache(request)
@@ -137,14 +141,14 @@ def setup_mobile_routes() -> APIRouter:
             device = db.query(MobileDevice).filter(
                 MobileDevice.api_token_id == token_id,
                 MobileDevice.owner == owner,
-                MobileDevice.revoked_at == None,  # noqa: E711
+                MobileDevice.revoked_at.is_(None),
             ).first()
             if not device:
                 raise HTTPException(404, "Device not found")
             device.push_provider = provider
             device.push_token_hash = hash_push_token(push_token)
             device.notification_mode = provider
-            device.last_seen_at = datetime.utcnow()
+            device.last_seen_at = _now_utc()
         return {"status": "registered", "push_provider": provider, "push_registered": bool(push_token)}
 
     @router.post("/push/test")
@@ -156,7 +160,7 @@ def setup_mobile_routes() -> APIRouter:
             if token_id:
                 device = db.query(MobileDevice).filter(MobileDevice.api_token_id == token_id).first()
             event = NotificationEvent(
-                id="evt_test_" + datetime.utcnow().strftime("%Y%m%d%H%M%S%f"),
+                id="evt_test_" + _now_utc().strftime("%Y%m%d%H%M%S%f"),
                 owner=owner,
                 device_id=device.id if device else None,
                 event_type="push_test",
@@ -171,13 +175,13 @@ def setup_mobile_routes() -> APIRouter:
     @router.get("/events")
     async def list_events(request: Request):
         owner = _mobile_owner(request)
-        now = datetime.utcnow()
+        now = _now_utc()
         with get_db_session() as db:
             events = db.query(NotificationEvent).filter(
                 NotificationEvent.owner == owner,
-                NotificationEvent.consumed_at == None,  # noqa: E711
+                NotificationEvent.consumed_at.is_(None),
             ).filter(
-                (NotificationEvent.expires_at == None) | (NotificationEvent.expires_at > now)  # noqa: E711
+                NotificationEvent.expires_at.is_(None) | (NotificationEvent.expires_at > now)
             ).order_by(NotificationEvent.created_at.desc()).limit(100).all()
             return {"events": [event_summary(event) for event in events]}
 
@@ -203,7 +207,7 @@ def setup_mobile_routes() -> APIRouter:
             ).first()
             if not event:
                 raise HTTPException(404, "Event not found")
-            event.consumed_at = event.consumed_at or datetime.utcnow()
+            event.consumed_at = event.consumed_at or _now_utc()
         return {"status": "acknowledged"}
 
     return router
