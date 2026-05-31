@@ -413,7 +413,7 @@ class MobileDevice(TimestampMixin, Base):
     __tablename__ = "mobile_devices"
 
     id = Column(String, primary_key=True, index=True)
-    owner = Column(String, nullable=True, index=True)
+    owner = Column(String, nullable=False, index=True)
     device_name = Column(String, nullable=False)
     platform = Column(String, nullable=False, default="unknown")
     api_token_id = Column(String, ForeignKey("api_tokens.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -431,7 +431,7 @@ class NotificationEvent(TimestampMixin, Base):
     __tablename__ = "notification_events"
 
     id = Column(String, primary_key=True, index=True)
-    owner = Column(String, nullable=True, index=True)
+    owner = Column(String, nullable=False, index=True)
     device_id = Column(String, ForeignKey("mobile_devices.id", ondelete="SET NULL"), nullable=True, index=True)
     event_type = Column(String, nullable=False, default="generic")
     priority = Column(String, nullable=False, default="normal")

@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 from core.database import ApiToken, MobileDevice, NotificationEvent, get_db_session
 from services.mobile_devices import (
+    ALLOWED_PUSH_PROVIDERS,
     create_mobile_device,
     device_to_dict,
     hash_push_token,
@@ -110,10 +111,19 @@ def setup_mobile_routes() -> APIRouter:
         return {"status": "ok", "owner": owner, "device": device_payload}
 
     @router.get("/devices")
-    async def list_devices(request: Request):
+    async def list_devices(request: Request, limit: int = 100, offset: int = 0):
         owner = _mobile_owner(request)
+        limit = max(1, min(limit, 200))
+        offset = max(0, offset)
         with get_db_session() as db:
-            devices = db.query(MobileDevice).filter(MobileDevice.owner == owner).order_by(MobileDevice.created_at.desc()).all()
+            devices = (
+                db.query(MobileDevice)
+                .filter(MobileDevice.owner == owner)
+                .order_by(MobileDevice.created_at.desc())
+                .offset(offset)
+                .limit(limit)
+                .all()
+            )
             return {"devices": [device_to_dict(device) for device in devices]}
 
     @router.post("/devices/{device_id}/revoke")
@@ -140,7 +150,7 @@ def setup_mobile_routes() -> APIRouter:
             raise HTTPException(403, "Mobile token required")
         provider = (body.get("push_provider") or body.get("provider") or "").strip().lower()
         push_token = body.get("push_token")
-        if provider not in {"ntfy", "apns", "fcm", "unifiedpush", "local"}:
+        if provider not in ALLOWED_PUSH_PROVIDERS:
             raise HTTPException(400, "Unsupported push provider")
         with get_db_session() as db:
             device = db.query(MobileDevice).filter(
@@ -176,16 +186,24 @@ def setup_mobile_routes() -> APIRouter:
             return {"status": "created", "event": event_summary(event), "push_payload": opaque_push_payload(event.id)}
 
     @router.get("/events")
-    async def list_events(request: Request):
+    async def list_events(request: Request, limit: int = 100, offset: int = 0):
         owner = _mobile_owner(request)
         now = _now_utc()
+        limit = max(1, min(limit, 200))
+        offset = max(0, offset)
         with get_db_session() as db:
-            events = db.query(NotificationEvent).filter(
-                NotificationEvent.owner == owner,
-                NotificationEvent.consumed_at.is_(None),
-            ).filter(
-                NotificationEvent.expires_at.is_(None) | (NotificationEvent.expires_at > now)
-            ).order_by(NotificationEvent.created_at.desc()).limit(100).all()
+            events = (
+                db.query(NotificationEvent)
+                .filter(
+                    NotificationEvent.owner == owner,
+                    NotificationEvent.consumed_at.is_(None),
+                )
+                .filter(NotificationEvent.expires_at.is_(None) | (NotificationEvent.expires_at > now))
+                .order_by(NotificationEvent.created_at.desc())
+                .offset(offset)
+                .limit(limit)
+                .all()
+            )
             return {"events": [event_summary(event) for event in events]}
 
     @router.get("/events/{event_id}")

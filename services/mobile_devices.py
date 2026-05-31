@@ -25,6 +25,8 @@ DEFAULT_MOBILE_SCOPES = (
     "settings:mobile",
 )
 
+ALLOWED_PUSH_PROVIDERS = {"ntfy", "apns", "fcm", "unifiedpush", "local"}
+
 
 @dataclass
 class PairingToken:
@@ -108,7 +110,7 @@ def create_mobile_device(
     """Create a revocable device plus a device-specific bearer token."""
 
     token = "ody_" + secrets.token_urlsafe(32)
-    token_id = str(uuid.uuid4())[:8]
+    token_id = str(uuid.uuid4())
     device_id = "mob_" + secrets.token_urlsafe(12)
     mobile_scopes = normalize_scopes(scopes)
 
