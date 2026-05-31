@@ -1709,6 +1709,61 @@ function initCalDAV() {
 }
 
 /* ── Data Backup (export/import) ── */
+async function loadSystemStatus() {
+  const list = el('adm-system-status-list');
+  const summary = el('adm-system-status-summary');
+  const refreshBtn = el('adm-system-status-refresh');
+  if (!list) return;
+  if (refreshBtn) refreshBtn.disabled = true;
+  list.innerHTML = '<div class="admin-empty">Checking...</div>';
+  if (summary) { summary.textContent = ''; summary.className = ''; }
+  const statusStyle = {
+    ok: 'color:var(--green);border-color:color-mix(in srgb, var(--green) 35%, var(--border));',
+    warning: 'color:#d9a441;border-color:color-mix(in srgb, #d9a441 35%, var(--border));',
+    degraded: 'color:#d9a441;border-color:color-mix(in srgb, #d9a441 35%, var(--border));',
+    error: 'color:var(--red);border-color:color-mix(in srgb, var(--red) 35%, var(--border));',
+    unknown: 'color:#aaa;border-color:var(--border);',
+    disabled: 'color:#aaa;border-color:var(--border);',
+    not_configured: 'color:#aaa;border-color:var(--border);',
+  };
+  try {
+    const res = await fetch('/api/system/status', { credentials: 'same-origin' });
+    if (!res.ok) throw new Error('Status check failed');
+    const data = await res.json();
+    const services = Array.isArray(data.services) ? data.services : [];
+    if (!services.length) {
+      list.innerHTML = '<div class="admin-empty">No status details returned</div>';
+    } else {
+      list.innerHTML = services.map(s => {
+        const status = s.status || 'unknown';
+        const label = status.replace(/_/g, ' ');
+        return `<div class="admin-user-row" style="align-items:flex-start;">
+          <div style="min-width:0;">
+            <div class="admin-toggle-label">${esc(s.name || 'Service')}</div>
+            <div class="admin-toggle-sub">${esc(s.detail || '')}</div>
+          </div>
+          <span class="admin-badge" style="margin-left:auto;${statusStyle[status] || statusStyle.unknown}">${esc(label)}</span>
+        </div>`;
+      }).join('');
+    }
+    if (summary) {
+      const degraded = Number(data.degraded_count || 0);
+      summary.textContent = degraded ? `${degraded} item(s) need attention` : 'All checked services look OK';
+      summary.className = degraded ? 'admin-error' : 'admin-success';
+    }
+  } catch (e) {
+    list.innerHTML = '<div class="admin-error">Failed to load system status</div>';
+    if (summary) { summary.textContent = e.message || 'Status unavailable'; summary.className = 'admin-error'; }
+  } finally {
+    if (refreshBtn) refreshBtn.disabled = false;
+  }
+}
+
+function initSystemStatus() {
+  el('adm-system-status-refresh')?.addEventListener('click', loadSystemStatus);
+}
+
+/* ── Data Backup (export/import) ── */
 function initBackup() {
   el('adm-exportDataBtn').addEventListener('click', async () => {
     const btn = el('adm-exportDataBtn');
@@ -1798,7 +1853,7 @@ function initDangerZone() {
    ═══════════════════════════════════════════ */
 function initAll() {
   modalEl = el('settings-modal');
-  const inits = [initSignupToggle, initAddUser, initEndpointForm, initMcpForm, initCalDAV, initBackup, initDangerZone, () => settingsModule.initIntegrations()];
+  const inits = [initSignupToggle, initAddUser, initEndpointForm, initMcpForm, initCalDAV, initSystemStatus, initBackup, initDangerZone, () => settingsModule.initIntegrations()];
   for (const fn of inits) {
     try { fn(); } catch (e) { console.error('Admin init error in', fn.name || 'anonymous', e); }
   }
@@ -1811,6 +1866,7 @@ function refreshAll() {
   loadEndpoints();
   loadBuiltinTools();
   loadMcpServers();
+  loadSystemStatus();
 }
 
 /* ═══════════════════════════════════════════

@@ -119,6 +119,7 @@ if AUTH_ENABLED:
         "/api/auth/features",
         "/api/auth/settings",
         "/api/auth/integrations/presets",
+        "/api/mobile/pair/complete",
         "/api/health",
         "/api/version",
         "/login",
@@ -466,7 +467,7 @@ app.include_router(setup_preset_routes(preset_manager))
 
 # Diagnostics
 from routes.diagnostics_routes import setup_diagnostics_routes
-app.include_router(setup_diagnostics_routes(rag_manager, rag_available, research_handler))
+app.include_router(setup_diagnostics_routes(rag_manager, rag_available, research_handler, memory_vector=memory_vector))
 
 # Cleanup
 from routes.cleanup_routes import setup_cleanup_routes
@@ -580,6 +581,10 @@ from routes.api_token_routes import setup_api_token_routes
 app.include_router(setup_api_token_routes())
 
 logger.info("Webhook & API token routes initialized")
+
+# Mobile pairing, devices, and private notification event APIs
+from routes.mobile_routes import setup_mobile_routes
+app.include_router(setup_mobile_routes())
 
 # Notes (Google Keep-style notes/todos)
 from routes.note_routes import setup_note_routes

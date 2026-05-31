@@ -408,6 +408,40 @@ class ApiToken(TimestampMixin, Base):
     last_used_at = Column(DateTime, nullable=True)
 
 
+class MobileDevice(TimestampMixin, Base):
+    """Revocable mobile client paired to a user account."""
+    __tablename__ = "mobile_devices"
+
+    id = Column(String, primary_key=True, index=True)
+    owner = Column(String, nullable=False, index=True)
+    device_name = Column(String, nullable=False)
+    platform = Column(String, nullable=False, default="unknown")
+    api_token_id = Column(String, ForeignKey("api_tokens.id", ondelete="SET NULL"), nullable=True, index=True)
+    last_seen_at = Column(DateTime, nullable=True)
+    revoked_at = Column(DateTime, nullable=True, index=True)
+    notification_mode = Column(String, nullable=False, default="local")
+    notification_privacy_level = Column(Integer, nullable=False, default=1)
+    scopes = Column(String, nullable=False, default="")
+    push_provider = Column(String, nullable=True)
+    push_token_hash = Column(String, nullable=True)
+
+
+class NotificationEvent(TimestampMixin, Base):
+    """Private mobile notification event stored locally in Odysseus."""
+    __tablename__ = "notification_events"
+
+    id = Column(String, primary_key=True, index=True)
+    owner = Column(String, nullable=False, index=True)
+    device_id = Column(String, ForeignKey("mobile_devices.id", ondelete="SET NULL"), nullable=True, index=True)
+    event_type = Column(String, nullable=False, default="generic")
+    priority = Column(String, nullable=False, default="normal")
+    expires_at = Column(DateTime, nullable=True, index=True)
+    consumed_at = Column(DateTime, nullable=True, index=True)
+    private_payload_json = Column(EncryptedText, nullable=False, default="{}")
+    push_sent_at = Column(DateTime, nullable=True)
+    delivery_status = Column(String, nullable=False, default="created")
+
+
 class Webhook(TimestampMixin, Base):
     """Outgoing webhooks fired on events."""
     __tablename__ = "webhooks"
